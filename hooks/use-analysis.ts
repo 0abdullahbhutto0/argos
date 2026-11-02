@@ -1,0 +1,307 @@
+"use client";
+
+import { useCallback, useState, useRef } from "react";
+import { useAnalysisContext } from "@/context/analysis-context";
+import { AnalysisResult } from "@/lib/types";
+import { analysisStorage } from "@/lib/storage";
+
+const GITHUB_URL_REGEX =
+  /(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+\/[^\/\s?#]+)/;
+const SIMPLE_REPO_REGEX = /^([^\/\s]+\/[^\/\s]+)$/;
+
+function extractRepoFullName(url: string): string | null {
+  const match = url.match(GITHUB_URL_REGEX);
+  if (match) return match[1].replace(/\.git$/, "");
+  const simple = url.trim().match(SIMPLE_REPO_REGEX);
+  return simple ? simple[1] : null;
+}
+
+const LOADING_MESSAGES = [
+  "Scanning repository...",
+  "Analyzing patterns...",
+  "Checking architecture...",
+  "Generating insights...",
+  "Evaluating code quality...",
+  "Building recommendations...",
+  "Preparing results...",
+  "Finalizing analysis...",
+];
+
+export function useAnalysis() {
+  const {
+    status,
+    result,
+    setStatus,
+    setResult,
+    updateResult,
+    reset: contextReset,
+    isLoading,
+    isComplete,
+    hasError,
+    isIdle,
+  } = useAnalysisContext();
+
+  const [isCached, setIsCached] = useState(false);
+  const [currentRepoUrl, setCurrentRepoUrl] = useState<string | null>(null);
+  const [currentBranch, setCurrentBranch] = useState<string | undefined>();
+  const abortRef = useRef<AbortController | null>(null);
+
+  const analyze = useCallback(
+    async (url: string, branch?: string, skipCache = false) => {
+      const repoFullName = extractRepoFullName(url);
+      if (!repoFullName) {
+        setStatus({
+          stage: "error",
+          progress: 0,
+          currentStep: "",
+          error: "Invalid GitHub URL",
+        });
+        return;
+      }
+
+      abortRef.current?.abort();
+      setCurrentRepoUrl(url);
+      setCurrentBranch(branch);
+
+      if (!skipCache) {
+        const cached = analysisStorage.get(repoFullName, branch);
+        if (cached) {
+          setResult(cached);
+          setIsCached(true);
+          setStatus({
+            stage: "complete",
+            progress: 100,
+            currentStep: "Loaded from cache",
+          });
+          return;
+        }
+      }
+
+      setIsCached(false);
+      setStatus({
+        stage: "fetching",
+        progress: 5,
+        currentStep: "Connecting...",
+      });
+      setResult(null);
+      abortRef.current = new AbortController();
+
+      try {
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, branch }),
+          signal: abortRef.current.signal,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Analysis failed");
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let aiContent = "";
+        let currentResult: Partial<AnalysisResult> = {};
+
+        setStatus({
+          stage: "fetching",
+          progress: 15,
+          currentStep: "Fetching data...",
+        });
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              switch (data.type) {
+                case "metadata": {
+                  const {
+                    metadata,
+                    branch: b,
+                    availableBranches,
+                  } = data.data;
+                  currentResult = {
+                    metadata,
+                    branch: b,
+                    availableBranches,
+                  };
+                  setCurrentBranch(b);
+                  updateResult(currentResult);
+                  setStatus({
+                    stage: "analyzing",
+                    progress: 20,
+                    currentStep: `Analyzing ${b}...`,
+                  });
+                  break;
+                }
+                case "automations":
+                  currentResult = { ...currentResult, automations: data.data };
+                  updateResult(currentResult);
+                  setStatus({
+                    stage: "analyzing",
+                    progress: 40,
+                    currentStep: "Automations ready...",
+                  });
+                  break;
+                case "refactors":
+                  currentResult = { ...currentResult, refactors: data.data };
+                  updateResult(currentResult);
+                  setStatus({
+                    stage: "analyzing",
+                    progress: 50,
+                    currentStep: "Refactors ready...",
+                  });
+                  break;
+                case "content":
+                  aiContent += data.data;
+                  // Asymptotic progress: starts fast, slows near 98%.
+                  // Never hard-caps, so the bar always keeps moving.
+                  const len = aiContent.length;
+                  const contentProgress = 50 + 48 * (1 - Math.exp(-len / 4000));
+                  const msgIdx = Math.min(
+                    Math.floor(len / 600),
+                    LOADING_MESSAGES.length - 1,
+                  );
+                  setStatus({
+                    stage: "analyzing",
+                    progress: Math.min(contentProgress, 98),
+                    currentStep: LOADING_MESSAGES[msgIdx],
+                  });
+                  break;
+                case "error":
+                  throw new Error(data.data);
+                case "done": {
+                  const final = processFinalResult(aiContent, currentResult);
+
+                  updateResult(final);
+                  if (currentResult.metadata?.fullName) {
+                    analysisStorage.set(
+                      currentResult.metadata.fullName,
+                      final as AnalysisResult,
+                      currentResult.branch,
+                    );
+                  }
+                  setStatus({
+                    stage: "complete",
+                    progress: 100,
+                    currentStep: "Complete!",
+                  });
+                  break;
+                }
+              }
+            } catch (e) {
+              if (e instanceof Error && e.message !== "done")
+                console.error("Parse error:", e);
+            }
+          }
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setStatus({
+          stage: "error",
+          progress: 0,
+          currentStep: "",
+          error: error instanceof Error ? error.message : "Analysis failed",
+        });
+      } finally {
+        abortRef.current = null;
+      }
+    },
+    [setStatus, setResult, updateResult],
+  );
+
+  const analyzeBranch = useCallback(
+    async (branch: string) => {
+      if (currentRepoUrl) await analyze(currentRepoUrl, branch, true);
+    },
+    [currentRepoUrl, analyze],
+  );
+
+  const refresh = useCallback(async () => {
+    if (!currentRepoUrl) return;
+    const name = extractRepoFullName(currentRepoUrl);
+    if (name) analysisStorage.remove(name, currentBranch);
+    setIsCached(false);
+    await analyze(currentRepoUrl, currentBranch, true);
+  }, [currentRepoUrl, currentBranch, analyze]);
+
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    contextReset();
+    setIsCached(false);
+    setCurrentRepoUrl(null);
+    setCurrentBranch(undefined);
+  }, [contextReset]);
+
+  const clearCache = useCallback(() => {
+    if (!currentRepoUrl) return;
+    const name = extractRepoFullName(currentRepoUrl);
+    if (name) {
+      analysisStorage.remove(name, currentBranch);
+      setIsCached(false);
+    }
+  }, [currentRepoUrl, currentBranch]);
+
+  return {
+    analyze,
+    analyzeBranch,
+    refresh,
+    reset,
+    clearCache,
+    status,
+    result,
+    isLoading,
+    isComplete,
+    hasError,
+    isIdle,
+    isCached,
+    currentRepoUrl,
+    currentBranch,
+  };
+}
+
+function processFinalResult(
+  aiContent: string,
+  current: Partial<AnalysisResult>,
+): Partial<AnalysisResult> {
+  try {
+    const match = aiContent.match(/\{[\s\S]*\}/);
+    if (match) {
+      const data = JSON.parse(match[0]);
+      return {
+        ...current,
+        insights: (data.insights || []).filter(
+          (insight: { type: string }) => insight.type === "weakness" || insight.type === "warning",
+        ),
+        architecture: data.architecture || [],
+        dependencyGraph: data.dependencyGraph || { nodes: [], edges: [] },
+        automations: current.automations,
+        refactors: current.refactors,
+      };
+    }
+  } catch (e) {
+    console.error("Parse error:", e);
+  }
+
+  return {
+    ...current,
+    insights: [],
+    architecture: [],
+    dependencyGraph: { nodes: [], edges: [] },
+    automations: current.automations,
+    refactors: current.refactors,
+  };
+}
