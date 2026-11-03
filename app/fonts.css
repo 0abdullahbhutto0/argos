@@ -1,0 +1,26 @@
+/* Default Global Font will be Geist Sans */
+
+html,
+body {
+  font-family: var(--font-geist-sans);
+}
+
+/* JetBrains Mono */
+.jetbrains-mono {
+  font-family: var(--font-jetbrains-mono);
+}
+
+/* Geist Mono */
+.geist-mono {
+  font-family: var(--font-geist-mono);
+}
+
+/* Geist Sans */
+.geist-sans {
+  font-family: var(--font-geist-sans);
+}
+
+/* Instrument Serif */
+.instrument-serif {
+  font-family: var(--font-instrument-serif);
+}
