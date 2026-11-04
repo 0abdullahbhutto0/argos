@@ -39,6 +39,7 @@ interface AccountData {
 const PROVIDER_ICONS: Record<string, { icon: typeof Github; label: string }> = {
   github: { icon: Github, label: "GitHub" },
   google: { icon: Mail, label: "Google" },
+  email: { icon: Mail, label: "Email" },
 };
 
 export default function AccountPage() {
@@ -166,7 +167,7 @@ export default function AccountPage() {
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center ring-2 ring-border">
                     <span className="text-lg font-medium text-muted-foreground">
-                      {user.name?.charAt(0)?.toUpperCase() || "?"}
+                      {(user.name || user.email)?.charAt(0)?.toUpperCase() || "?"}
                     </span>
                   </div>
                 )}
