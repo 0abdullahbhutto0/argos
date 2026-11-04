@@ -5,20 +5,8 @@ export interface SectionHeaderProps {
   icon?: LucideIcon;
 }
 
-export interface TabTriggerItemProps {
-  value: string;
-  icon: LucideIcon;
-  label: string;
-  count?: number;
-}
-
 export interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   description: string;
-}
-
-export interface BranchIndicatorProps {
-  branch: string;
-  isDefault?: boolean;
 }

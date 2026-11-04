@@ -20,7 +20,6 @@ interface AnalysisContextType {
   isLoading: boolean;
   isComplete: boolean;
   hasError: boolean;
-  isIdle: boolean;
 }
 
 const initialStatus: StreamingAnalysis = {
@@ -49,7 +48,6 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const isLoading = ["fetching", "parsing", "analyzing"].includes(status.stage);
   const isComplete = status.stage === "complete";
   const hasError = status.stage === "error";
-  const isIdle = status.stage === "idle";
 
   return (
     <AnalysisContext.Provider
@@ -63,7 +61,6 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         isLoading,
         isComplete,
         hasError,
-        isIdle,
       }}
     >
       {children}

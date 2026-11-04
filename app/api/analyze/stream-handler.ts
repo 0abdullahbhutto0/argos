@@ -1,8 +1,15 @@
-import { RepoMetadata, BranchInfo } from "@/lib/types";
+import { BranchInfo, RepoMetadata } from "@/lib/types";
 import { StreamEvent } from "./types";
-import { GeneratedAutomation } from "./automation-generator";
-import { GeneratedRefactor } from "./refactor-generator";
-import { CachedAnalysisResult } from "@/lib/server-cache";
+import { AnalysisResponseError, parseAnalysisContent } from "@/lib/validators";
+
+export function formatModelError(error: unknown): string {
+  if (error instanceof AnalysisResponseError) return error.message;
+  const message = error instanceof Error ? error.message : String(error);
+  if (/no longer available|no provider|no endpoints found|model.*not found|not a valid model/i.test(message)) {
+    return "The AI model is currently unavailable. Please try again later; the site maintainer may need to update the model.";
+  }
+  return "The AI model could not complete the analysis. Please try again.";
+}
 
 const encoder = new TextEncoder();
 
@@ -13,15 +20,10 @@ export function encodeStreamEvent(event: StreamEvent): Uint8Array {
 export function getStreamHeaders(): HeadersInit {
   return {
     "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Cache-Control": "no-store",
     Connection: "keep-alive",
     "X-Content-Type-Options": "nosniff",
   };
-}
-
-interface PreComputedData {
-  automations: GeneratedAutomation[];
-  refactors: GeneratedRefactor[];
 }
 
 export function createAnalysisStream(
@@ -29,8 +31,6 @@ export function createAnalysisStream(
   branch: string,
   availableBranches: BranchInfo[],
   textStream: AsyncIterable<string>,
-  preComputed: PreComputedData,
-  onComplete?: () => void,
 ): ReadableStream {
   return new ReadableStream({
     async start(controller) {
@@ -38,46 +38,23 @@ export function createAnalysisStream(
         type: "metadata",
         data: { metadata, branch, availableBranches },
       }));
-      controller.enqueue(encodeStreamEvent({ type: "automations", data: preComputed.automations }));
-      controller.enqueue(encodeStreamEvent({ type: "refactors", data: preComputed.refactors }));
 
+      let content = "";
       try {
         for await (const chunk of textStream) {
+          content += chunk;
           controller.enqueue(encodeStreamEvent({ type: "content", data: chunk }));
         }
+        parseAnalysisContent(content);
       } catch (error) {
-        console.error("Stream error:", error);
-        controller.enqueue(encodeStreamEvent({ type: "error", data: "Stream interrupted" }));
+        const message = formatModelError(error);
+        console.error("Model analysis error:", message);
+        controller.enqueue(encodeStreamEvent({ type: "error", data: message }));
+        controller.close();
+        return;
       }
 
       controller.enqueue(encodeStreamEvent({ type: "done" }));
-      controller.close();
-      onComplete?.();
-    },
-  });
-}
-
-export function createCachedAnalysisStream(cached: CachedAnalysisResult): ReadableStream {
-  return new ReadableStream({
-    start(controller) {
-      const send = (event: StreamEvent) => controller.enqueue(encodeStreamEvent(event));
-
-      send({
-        type: "metadata",
-        data: {
-          metadata: cached.metadata,
-          branch: cached.branch,
-          availableBranches: cached.availableBranches,
-        },
-      });
-      send({ type: "automations", data: cached.automations });
-      send({ type: "refactors", data: cached.refactors });
-
-      if (cached.aiContent) {
-        send({ type: "content", data: cached.aiContent });
-      }
-
-      send({ type: "done" });
       controller.close();
     },
   });

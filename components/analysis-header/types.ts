@@ -9,11 +9,27 @@ export interface AnalysisHeaderProps {
   isLoading?: boolean;
 }
 
+export interface InfoSectionProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  accentColor?: AccentColor;
+  count?: number;
+  children: React.ReactNode;
+}
+
 export interface StatItem {
   icon: LucideIcon;
   value: number;
   label: string;
   highlight: boolean;
+}
+
+export type AccentColor = "primary" | "blue" | "green" | "purple" | "orange" | "cyan";
+
+export interface ColorClasses {
+  iconBg: string;
+  iconText: string;
 }
 
 export interface BranchSelectorProps {

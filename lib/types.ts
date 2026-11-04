@@ -4,14 +4,19 @@ export interface FileNode {
   type: "file" | "directory";
   children?: FileNode[];
   size?: number;
+  language?: string;
+  extension?: string;
+}
+
+export interface FileStats {
+  totalFiles: number;
+  totalDirectories: number;
+  languages: Record<string, number>;
 }
 
 export interface BranchInfo {
   name: string;
-  commit: {
-    sha: string;
-    url: string;
-  };
+  commit: { sha: string; url: string };
   protected: boolean;
   isDefault: boolean;
 }
@@ -33,66 +38,16 @@ export interface RepoMetadata {
   openIssues: number;
   license: string | null;
   isPrivate: boolean;
-  owner: {
-    login: string;
-    avatarUrl: string;
-    type: string;
-  };
-}
-
-export interface AIInsight {
-  type: "weakness" | "warning";
-  category: string;
-  title: string;
-  description: string;
-  priority: "low" | "medium" | "high" | "critical";
-  affectedFiles?: string[];
-}
-
-export interface Refactor {
-  id: string;
-  title: string;
-  description: string;
-  impact: "low" | "medium" | "high";
-  effort: "low" | "medium" | "high";
-  category: string;
-  files: string[];
-  suggestedCode?: string;
-  codeExample?: string;
-}
-
-export interface Automation {
-  id: string;
-  type: "issue" | "pull-request" | "workflow";
-  title: string;
-  description: string;
-  body: string;
-  labels?: string[];
-  priority: "low" | "medium" | "high";
+  owner: { login: string; avatarUrl: string; type: string };
 }
 
 export interface ArchitectureComponent {
   id: string;
   name: string;
-  type:
-    | "frontend"
-    | "backend"
-    | "database"
-    | "service"
-    | "external"
-    | "middleware"
-    | "cache"
-    | "load-balancer"
-    | "queue"
-    | "storage"
-    | "cdn"
-    | "gateway"
-    | "worker";
+  type: "frontend" | "backend" | "database" | "service" | "external" | "middleware";
   description: string;
   technologies: string[];
   connections: string[];
-  evidence?: string[];
-  connectionDetails?: { to: string; label: string }[];
 }
 
 export interface DependencyNode {
@@ -113,14 +68,8 @@ export interface AnalysisResult {
   metadata: RepoMetadata;
   branch?: string;
   availableBranches?: BranchInfo[];
-  insights?: AIInsight[];
-  refactors?: Refactor[];
-  automations?: Automation[];
   architecture?: ArchitectureComponent[];
-  dependencyGraph?: {
-    nodes: DependencyNode[];
-    edges: DependencyEdge[];
-  };
+  dependencyGraph?: { nodes: DependencyNode[]; edges: DependencyEdge[] };
 }
 
 export type AnalysisStage = "idle" | "fetching" | "parsing" | "analyzing" | "complete" | "error";

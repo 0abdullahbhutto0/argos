@@ -1,11 +1,11 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { EnvConfig } from "./types";
 
-export const MODEL_ID = "xingchen-agi/xing4.0-29b-a4b:free";
+export const MODEL_ID = "openrouter/free";
 
 export const AI_CONFIG = {
   temperature: 0.7,
-  maxOutputTokens: 4000,
+  maxOutputTokens: 400000,
 } as const;
 
 

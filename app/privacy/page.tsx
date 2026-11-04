@@ -57,7 +57,7 @@ export default function PrivacyPage() {
               <li>Provide, maintain, and improve the Service.</li>
               <li>Authenticate your identity and manage your account.</li>
               <li>Prevent abuse of the Service.</li>
-              <li>Analyze public repository code to generate AI-powered insights.</li>
+              <li>Analyze public repository code to map architecture and module dependencies.</li>
               <li>Communicate with you about service updates (if applicable).</li>
             </ul>
           </section>

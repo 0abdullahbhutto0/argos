@@ -31,8 +31,9 @@ export function ArgosLogo({
           x2="100%"
           y2="100%"
         >
-          <stop offset="0%" stopColor="var(--primary)" />
-          <stop offset="100%" stopColor="color-mix(in srgb, var(--primary) 70%, var(--foreground))" />
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="50%" stopColor="#0284c7" />
+          <stop offset="100%" stopColor="#0021f4" />
         </linearGradient>
       </defs>
       <path

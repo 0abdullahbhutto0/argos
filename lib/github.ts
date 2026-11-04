@@ -1,11 +1,6 @@
-import { FileNode, RepoMetadata, BranchInfo } from "./types";
+import { FileNode, FileStats, RepoMetadata, BranchInfo } from "./types";
+import { getLanguageFromExtension, getFileExtension } from "./utils";
 import { MAX_TREE_ITEMS, MAX_FILE_TREE_DEPTH } from "./constants";
-import {
-  metadataCache,
-  treeCache,
-  branchesCache,
-  filesCache,
-} from "./server-cache";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -29,7 +24,6 @@ interface GitHubBranchResponse {
   protected: boolean;
 }
 
-// Cache headers object to avoid recreation
 const BASE_HEADERS: HeadersInit = {
   Accept: "application/vnd.github.v3+json",
   "User-Agent": "Argos-Analyzer",
@@ -53,10 +47,6 @@ export async function fetchRepoBranches(
   repo: string,
   defaultBranch?: string,
 ): Promise<BranchInfo[]> {
-  const cacheKey = `${owner}/${repo}`;
-  const cached = branchesCache.get(cacheKey) as BranchInfo[] | null;
-  if (cached) return cached;
-
   const perPage = 100;
   const maxBranches = 100;
 
@@ -95,7 +85,6 @@ export async function fetchRepoBranches(
       return a.name.localeCompare(b.name);
     });
 
-    branchesCache.set(cacheKey, sorted);
     return sorted;
   } catch (error) {
     console.error("Error fetching branches:", error);
@@ -107,10 +96,6 @@ export async function fetchRepoMetadata(
   owner: string,
   repo: string,
 ): Promise<RepoMetadata> {
-  const cacheKey = `${owner}/${repo}`;
-  const cached = metadataCache.get(cacheKey);
-  if (cached) return cached as RepoMetadata;
-
   const response = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}`, {
     headers: getHeaders(),
     cache: "no-store",
@@ -158,7 +143,6 @@ export async function fetchRepoMetadata(
     },
   };
 
-  metadataCache.set(cacheKey, metadata);
   return metadata;
 }
 
@@ -199,10 +183,6 @@ export async function fetchRepoTree(
   repo: string,
   branch?: string,
 ): Promise<FileNode[]> {
-  const cacheKey = `${owner}/${repo}:${branch || "_default"}`;
-  const cached = treeCache.get(cacheKey) as FileNode[] | null;
-  if (cached) return cached;
-
   const branchesToTry = branch ? [branch] : ["main", "master"];
   let lastError: Error | null = null;
 
@@ -227,7 +207,6 @@ export async function fetchRepoTree(
         }
 
         const result = buildFileTree(filteredItems);
-        treeCache.set(cacheKey, result);
         return result;
       }
 
@@ -264,6 +243,8 @@ function buildFileTree(items: GitHubTreeItem[]): FileNode[] {
       path: item.path,
       type: item.type === "tree" ? "directory" : "file",
       size: item.size,
+      language: getLanguageFromExtension(name),
+      extension: getFileExtension(name),
       children: item.type === "tree" ? [] : undefined,
     };
 
@@ -391,22 +372,6 @@ const IMPORTANT_FILES = [
   "app/controllers/application_controller.rb",
 ];
 
-export function isInfrastructureFile(path: string): boolean {
-  const normalized = path.toLowerCase();
-  const name = normalized.split("/").pop() || normalized;
-  if (/^\.env(?:\.|$)/.test(name) || /(?:^|[._-])(?:secrets?|credentials?)(?:[._-]|$)/.test(name) || /(?:^|\/)(?:secrets?|credentials?)\//.test(normalized) || /\.(?:tfvars|tfstate|tfplan)(?:\.|$)/.test(name)) return false;
-
-  if (/^(?:dockerfile(?:\..+)?|.+\.dockerfile|(?:docker-)?compose(?:[.-].+)?\.ya?ml)$/.test(name)) return true;
-  if (/\.tf$/.test(name) || /^(?:chart|values|helmfile|kustomization|deployment|ingress|skaffold)(?:[.-].+)?\.ya?ml$/.test(name)) return true;
-  if (/^(?:nginx|haproxy|traefik)(?:[.-].+)?\.(?:conf|cfg|ya?ml|toml)$/.test(name)) return true;
-  if (/(?:^|\/)(?:infra|infrastructure|deploy|deployments?|k8s|kubernetes|helm|charts|terraform|nginx|haproxy|traefik)\//.test(normalized) && /\.(?:ya?ml|json|toml|conf|cfg|tf)$/.test(name)) return true;
-
-  return /\.(?:ts|tsx|js|jsx|py|go|rs|cpp|c|h|hpp|java|kt|rb|swift|cs)$/.test(name) && (
-    /(?:^|[._-])(?:cache|caching|redis|queues?|workers?|server)(?:[._-]|$)/.test(name) ||
-    /(?:^|\/)(?:cache|caching|redis|queues?|workers?)\//.test(normalized)
-  );
-}
-
 /**
  * Discover additional high-value source files by scanning the tree.
  * Finds files that are likely core implementation files rather than configs/assets.
@@ -465,18 +430,14 @@ function discoverSourceFiles(tree: FileNode[], maxExtra: number = 12): string[] 
   ];
 
   const candidates: { path: string; priority: number }[] = [];
-  const infrastructureFiles: { path: string; depth: number }[] = [];
 
   function walk(nodes: FileNode[], depth: number) {
     if (depth > 5) return; // Don't go too deep
     for (const node of nodes) {
-      if (node.type === "file" && !existingSet.has(node.path.toLowerCase()) && !sourceExts.test(node.name) && isInfrastructureFile(node.path)) {
-        infrastructureFiles.push({ path: node.path, depth });
-      }
       if (node.type === "file" && sourceExts.test(node.name)) {
         if (existingSet.has(node.path.toLowerCase())) continue;
 
-        let priority = isInfrastructureFile(node.path) ? 5 : 0;
+        let priority = 0;
 
         // Boost files in priority directories
         for (const dirPattern of priorityDirs) {
@@ -514,9 +475,6 @@ function discoverSourceFiles(tree: FileNode[], maxExtra: number = 12): string[] 
 
   walk(tree, 0);
 
-  infrastructureFiles.sort((a, b) => a.depth - b.depth || a.path.localeCompare(b.path));
-  discovered.push(...infrastructureFiles.slice(0, 4).map((file) => file.path));
-
   // Sort by priority descending, take top N
   candidates.sort((a, b) => b.priority - a.priority);
   for (const candidate of candidates.slice(0, maxExtra)) {
@@ -537,10 +495,6 @@ export async function fetchImportantFiles(
   tree?: FileNode[],
 ): Promise<Record<string, string>> {
   const targetBranch = branch || "main";
-  const cacheKey = `${owner}/${repo}:${targetBranch}`;
-  const cached = filesCache.get(cacheKey);
-  if (cached) return cached;
-
   const contents: Record<string, string> = {};
   let totalSize = 0;
   const maxTotalSize = 200000; // 200KB total (doubled from 100KB)
@@ -549,9 +503,12 @@ export async function fetchImportantFiles(
   // Build the full file list: known important files + discovered source files
   const allFiles = [...IMPORTANT_FILES];
   if (tree) {
-    const discovered = discoverSourceFiles(tree, 15).filter((file) => !allFiles.includes(file));
-    allFiles.unshift(...discovered.filter(isInfrastructureFile));
-    allFiles.push(...discovered.filter((file) => !isInfrastructureFile(file)));
+    const discovered = discoverSourceFiles(tree, 15);
+    for (const file of discovered) {
+      if (!allFiles.includes(file)) {
+        allFiles.push(file);
+      }
+    }
   }
 
   const fetchFile = async (
@@ -594,8 +551,32 @@ export async function fetchImportantFiles(
     }
   }
 
-  filesCache.set(cacheKey, contents);
   return contents;
+}
+
+export function calculateFileStats(tree: FileNode[]): FileStats {
+  let totalFiles = 0;
+  let totalDirectories = 0;
+  const languages: Record<string, number> = {};
+
+  const stack: FileNode[] = [...tree];
+
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.type === "directory") {
+      totalDirectories++;
+      if (node.children) {
+        stack.push(...node.children);
+      }
+    } else {
+      totalFiles++;
+      if (node.language) {
+        languages[node.language] = (languages[node.language] || 0) + 1;
+      }
+    }
+  }
+
+  return { totalFiles, totalDirectories, languages };
 }
 
 export function createCompactTreeString(

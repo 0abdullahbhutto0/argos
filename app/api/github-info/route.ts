@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Uses the server-side cache (5 min TTL)
     const data = await fetchRepoMetadata(owner, repo);
 
     return NextResponse.json(
@@ -32,8 +31,7 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          "Cache-Control":
-            "public, s-maxage=300, stale-while-revalidate=600",
+          "Cache-Control": "no-store",
         },
       }
     );

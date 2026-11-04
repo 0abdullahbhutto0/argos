@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { validateGitHubUrl } from "@/lib/validators";
 import { cn } from "@/lib/utils";
-import { Github, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Github,
+  ArrowRight,
+  AlertCircle,
+  Search,
+  Loader2,
+} from "lucide-react";
 
 interface UrlInputProps {
   onAnalyze: (url: string, branch?: string) => void;
@@ -18,72 +24,111 @@ export function UrlInput({ onAnalyze, isLoading }: UrlInputProps) {
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    const validation = validateGitHubUrl(url);
-    if (!validation.valid) {
-      setError(validation.error || "Invalid URL");
-      return;
-    }
-    setError(null);
-    onAnalyze(validation.normalizedUrl || url, undefined);
-  }, [url, onAnalyze]);
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setUrl(e.target.value);
-    if (error) setError(null);
-  }, [error]);
+      const validation = validateGitHubUrl(url);
+      if (!validation.valid) {
+        setError(validation.error || "Invalid URL");
+        return;
+      }
+
+      setError(null);
+      onAnalyze(validation.normalizedUrl || url, undefined);
+    },
+    [url, onAnalyze]
+  );
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setUrl(e.target.value);
+      if (error) setError(null);
+    },
+    [error]
+  );
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1.0] }}
+      className="w-full max-w-2xl mx-auto"
+    >
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className={cn(
-          "overflow-hidden rounded-lg border bg-card transition-colors",
-          isFocused ? "border-primary/60 ring-1 ring-primary/15" : "border-border",
-          error && "border-destructive/60 ring-1 ring-destructive/15",
-        )}>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/25 px-4 py-2.5 sm:px-5">
-            <label htmlFor="repository-url" className="font-mono text-[11px] font-medium uppercase tracking-wider text-foreground">Repository</label>
-            <span className="font-mono text-[10px] text-muted-foreground">GitHub URL / owner/repo</span>
+        <div
+          className={cn(
+            "relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 p-1.5 sm:p-2 rounded-xl border bg-card/90 shadow-xs transition-all duration-200",
+            isFocused
+              ? "border-primary/60 ring-2 ring-primary/20"
+              : "border-border/80 hover:border-border",
+            error && "border-destructive/60 ring-1 ring-destructive/20"
+          )}
+        >
+          <div className="hidden sm:flex items-center justify-center w-10 h-10 rounded-lg bg-muted/60 shrink-0">
+            <Github className="w-5 h-5 text-muted-foreground" />
           </div>
-          <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:p-4">
-            <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
-              <Github className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <Input
-                id="repository-url"
-                type="text"
-                placeholder="github.com/owner/repository"
-                value={url}
-                onChange={handleChange}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                disabled={isLoading}
-                aria-invalid={Boolean(error)}
-                aria-describedby={error ? "repository-error" : "repository-help"}
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                className="h-11 min-w-0 flex-1 border-0 bg-transparent! px-0 font-mono text-sm shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-sm"
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={isLoading || !url.trim()}
-              className="h-11 w-full shrink-0 cursor-pointer gap-2 rounded-md px-5 text-xs font-medium shadow-none sm:w-auto"
-            >
-              {isLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Analyzing repository</> : <>Analyze repository<ArrowRight className="h-3.5 w-3.5" /></>}
-            </Button>
+
+          <div className="flex-1 flex items-center min-w-0">
+            <Input
+              type="text"
+              placeholder="owner/repo or github.com/owner/repo"
+              value={url}
+              onChange={handleChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              disabled={isLoading}
+              className={cn(
+                "flex-1 border-0 bg-transparent shadow-none h-11 outline-none",
+                "text-sm sm:text-base font-mono",
+                "placeholder:text-muted-foreground/45 placeholder:font-sans",
+                "focus-visible:ring-0 focus-visible:ring-offset-0 px-2 sm:px-1"
+              )}
+            />
           </div>
+
+          <Button
+            type="submit"
+            disabled={isLoading || !url.trim()}
+            className={cn(
+              "rounded-lg h-10 px-4 text-sm font-medium shrink-0 w-full sm:w-auto",
+              "bg-primary text-primary-foreground hover:bg-primary/90",
+              "disabled:opacity-40 disabled:cursor-not-allowed",
+              "transition-all duration-150 cursor-pointer shadow-xs"
+            )}
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Analyzing...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4" />
+                <span>Analyze</span>
+                <ArrowRight className="w-3.5 h-3.5 hidden sm:block opacity-70" />
+              </div>
+            )}
+          </Button>
         </div>
+
         <AnimatePresence>
           {error && (
-            <motion.div id="repository-error" role="alert" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 px-1 text-xs text-destructive">
-              <AlertCircle className="h-3.5 w-3.5 shrink-0" />{error}
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+              className="flex items-center gap-2 text-destructive text-xs sm:text-sm px-3 font-medium"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
             </motion.div>
           )}
         </AnimatePresence>
-        <p id="repository-help" className="px-1 font-mono text-[10px] leading-5 text-muted-foreground">
-          Paste a repository URL or use <span className="text-foreground">owner/repo</span>. Press Enter to analyze.
+
+        <p className="text-xs text-muted-foreground/60 text-center px-4">
+          Enter a GitHub repository (e.g. <span className="font-mono text-muted-foreground">facebook/react</span>) or full URL
         </p>
       </form>
     </motion.div>

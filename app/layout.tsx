@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from "next";
 import {
   Geist,
   Geist_Mono,
@@ -10,6 +11,7 @@ import { AnalysisProvider } from "@/context/analysis-context";
 import "./fonts.css";
 import { ThemeProvider } from "@/context/theme-provider";
 import { SessionProvider } from "next-auth/react";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   Monitor,
   Server,
@@ -9,19 +10,8 @@ import {
   Cog,
   Globe,
   ChevronDown,
-  ChevronUp,
   Layers,
-  Network,
-  MemoryStick,
-  ListOrdered,
-  HardDrive,
-  Route,
-  Workflow,
-  ArrowUpRight,
-  FileCode,
-  type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArchitectureComponent } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -30,203 +20,189 @@ interface ArchitectureDiagramProps {
   components: ArchitectureComponent[];
 }
 
-const typeConfig: Record<ArchitectureComponent["type"], { icon: LucideIcon; label: string; caption: string }> = {
-  frontend: { icon: Monitor, label: "Frontend", caption: "The user-facing experience" },
-  backend: { icon: Server, label: "Servers & APIs", caption: "Requests and application logic" },
-  database: { icon: Database, label: "Databases", caption: "Persistent data and queries" },
-  service: { icon: Cog, label: "Services", caption: "Focused application capabilities" },
-  external: { icon: Cloud, label: "External systems", caption: "Integrations beyond the codebase" },
-  middleware: { icon: Globe, label: "Middleware", caption: "Processing between system boundaries" },
-  cache: { icon: MemoryStick, label: "Caching", caption: "Frequently reused data" },
-  "load-balancer": { icon: Network, label: "Load balancing", caption: "Traffic distribution" },
-  queue: { icon: ListOrdered, label: "Message queues", caption: "Messages and asynchronous work" },
-  storage: { icon: HardDrive, label: "Storage", caption: "Files and objects" },
-  cdn: { icon: Globe, label: "CDN", caption: "Content delivery" },
-  gateway: { icon: Route, label: "Gateways & proxies", caption: "Routing between systems" },
-  worker: { icon: Workflow, label: "Background workers", caption: "Work outside the request lifecycle" },
-};
+const typeConfig = {
+  frontend: {
+    icon: Monitor,
+    label: "Frontend",
+  },
+  backend: {
+    icon: Server,
+    label: "Backend",
+  },
+  database: {
+    icon: Database,
+    label: "Database",
+  },
+  service: {
+    icon: Cog,
+    label: "Services",
+  },
+  external: {
+    icon: Cloud,
+    label: "External",
+  },
+  middleware: {
+    icon: Globe,
+    label: "Middleware",
+  },
+} as const;
 
-const layerOrder: ArchitectureComponent["type"][] = [
-  "frontend", "cdn", "load-balancer", "gateway", "middleware", "backend",
-  "service", "worker", "cache", "queue", "database", "storage", "external",
+const layerOrder = [
+  "frontend",
+  "middleware",
+  "backend",
+  "service",
+  "database",
+  "external",
 ];
 
 export function ArchitectureDiagram({ components }: ArchitectureDiagramProps) {
-  const [expandedIds, setExpandedIds] = useState(new Set<string>());
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  const componentRefs = useRef(new Map<string, HTMLElement>());
-  const { groups, componentMap, inbound, connectionCount } = useMemo(() => {
-    const valid = components.filter((component) => typeConfig[component.type]);
-    const componentMap = new Map(valid.map((component) => [component.id, component]));
-    const groups = layerOrder.map((type) => ({ type, members: valid.filter((component) => component.type === type) })).filter((group) => group.members.length > 0);
-    const inbound = new Map<string, ArchitectureComponent[]>();
-    let connectionCount = 0;
-    for (const component of valid) {
-      for (const id of new Set(component.connections)) {
-        if (!componentMap.has(id)) continue;
-        inbound.set(id, [...(inbound.get(id) || []), component]);
-        connectionCount++;
+  const groupedComponents = useMemo(() => {
+    const groups: Record<string, ArchitectureComponent[]> = {};
+    layerOrder.forEach((type) => (groups[type] = []));
+
+    components.forEach((comp) => {
+      if (groups[comp.type]) {
+        groups[comp.type].push(comp);
       }
-    }
-    return { groups, componentMap, inbound, connectionCount };
+    });
+
+    return groups;
   }, [components]);
 
-  const toggleDetails = (id: string) => {
-    setExpandedIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const activeLayers = layerOrder.filter(
+    (layer) => groupedComponents[layer]?.length > 0,
+  );
 
-  const focusComponent = (id: string) => {
-    setFocusedId(id);
-    setExpandedIds((previous) => new Set(previous).add(id));
-    requestAnimationFrame(() => {
-      const target = componentRefs.current.get(id);
-      target?.scrollIntoView({ behavior: "auto", block: "nearest" });
-      target?.focus({ preventScroll: true });
-    });
-  };
-
-  if (groups.length === 0) {
+  if (activeLayers.length === 0) {
     return (
-      <Card className="gap-0 rounded-lg border-border bg-card p-0 shadow-none">
-        <CardContent className="flex flex-col items-center px-5 py-10 text-center">
-          <Layers className="mb-3 h-6 w-6 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">No architecture data available</p>
-          <p className="mt-1 text-xs text-muted-foreground">Identified components will appear here once the analysis is available.</p>
+      <Card className="border-border/60">
+        <CardContent className="py-16">
+          <div className="flex flex-col items-center justify-center text-center">
+            <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center mb-4">
+              <Layers className="w-6 h-6 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              No architecture data available
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="gap-0 overflow-hidden rounded-lg border-border bg-card p-0 shadow-none">
-      <CardHeader className="border-b border-border bg-primary/[0.03] p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/5">
-              <Layers className="h-4 w-4 text-primary" />
-            </span>
-            <div>
-              <CardTitle className="text-sm font-medium text-foreground">Architecture Overview</CardTitle>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">What each part does, the technology behind it, and how it connects.</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] text-muted-foreground">
-            <span className="rounded border border-border bg-card px-2 py-1">{componentMap.size} components</span>
-            <span className="rounded border border-border bg-card px-2 py-1">{groups.length} layers</span>
-            <span className="rounded border border-border bg-card px-2 py-1">{connectionCount} connections</span>
-          </div>
+    <Card className="border-border/60 bg-background">
+      {/* Header */}
+      <CardHeader className="p-4 border-b border-border/50">
+        <div className="flex lg:items-center lg:flex-row justify-between flex-col gap-2 items-start">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Layers className="w-4 h-4 text-primary" />
+            Architecture Overview
+          </CardTitle>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {components.length} components · {activeLayers.length} layers
+          </span>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6 p-4 sm:p-5">
-        {groups.map(({ type, members }, layerIndex) => {
-          const config = typeConfig[type];
-          const Icon = config.icon;
-          return (
-            <section key={type} aria-label={config.label}>
-              <div className="mb-3 flex items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/15 bg-primary/5">
-                  <Icon className="h-4 w-4 text-primary" />
-                </span>
-                <div className="min-w-0">
-                  <h3 className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
-                    {config.label}
-                    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-normal text-muted-foreground">{members.length}</span>
-                  </h3>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{config.caption}</p>
-                </div>
-                <span className="ml-auto shrink-0 font-mono text-[9px] tracking-wider text-muted-foreground">LAYER {String(layerIndex + 1).padStart(2, "0")}</span>
-              </div>
+      {/* Content */}
+      <CardContent className="p-4 sm:p-6">
+        <div className="space-y-4">
+          {activeLayers.map((layer, layerIndex) => {
+            const config = typeConfig[layer as keyof typeof typeConfig];
+            const Icon = config?.icon || Cog;
+            const layerComponents = groupedComponents[layer];
 
-              <div className={cn("grid gap-3", members.length > 1 && "lg:grid-cols-2")}>
-                {members.map((component) => {
-                  const expanded = expandedIds.has(component.id);
-                  const outgoing = Array.from(new Set(component.connections)).filter((id) => componentMap.has(id));
-                  const callers = inbound.get(component.id) || [];
-                  const evidence = Array.from(new Set(component.evidence || []));
-                  return (
-                    <article
-                      key={component.id}
-                      ref={(element) => { if (element) componentRefs.current.set(component.id, element); else componentRefs.current.delete(component.id); }}
-                      data-architecture-component={component.id}
-                      tabIndex={-1}
-                      className={cn("rounded-lg border bg-background/30 p-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40", focusedId === component.id ? "border-primary/50" : "border-border hover:border-primary/25")}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <h4 className="min-w-0 break-words text-sm font-semibold tracking-tight text-foreground">{component.name}</h4>
-                        {evidence.length > 0 && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground" title="Source files referenced by the analysis">
-                            <FileCode className="h-2.5 w-2.5" />{evidence.length} {evidence.length === 1 ? "source" : "sources"}
-                          </span>
+            return (
+              <div key={layer}>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: layerIndex * 0.05 }}
+                  className="space-y-3"
+                >
+                  {/* Layer Header */}
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded-md bg-muted/60">
+                      <Icon className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {config?.label || layer}
+                      </span>
+                      <span className="text-xs text-muted-foreground/60 tabular-nums">
+                        ({layerComponents.length})
+                      </span>
+                    </div>
+                    <div className="flex-1 h-px bg-border/50" />
+                  </div>
+
+                  {/* Components Grid */}
+                  <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 sm:gap-4 sm:ml-9 lg:grid-cols-3">
+                    {layerComponents.map((component, index) => (
+                      <motion.div
+                        key={component.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{
+                          delay: layerIndex * 0.05 + index * 0.02,
+                        }}
+                        tabIndex={0}
+                        aria-label={component.name}
+                        className={cn(
+                          "group flex h-full min-w-0 flex-col rounded-lg border border-border/60 p-4 outline-none",
+                          "bg-muted/20 hover:bg-primary/5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5",
+                          "focus-visible:bg-primary/5 focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20",
+                          "transition-[background-color,border-color,box-shadow] duration-150 cursor-default",
                         )}
-                      </div>
-                      <p className={cn("mt-2 text-xs leading-6 text-muted-foreground", !expanded && "line-clamp-3")}>{component.description}</p>
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {(expanded ? component.technologies : component.technologies.slice(0, 5)).map((technology) => (
-                          <span key={technology} className="rounded border border-border bg-card px-2 py-1 font-mono text-[10px] text-foreground">{technology}</span>
-                        ))}
-                        {!expanded && component.technologies.length > 5 && <button type="button" onClick={() => toggleDetails(component.id)} className="px-1 text-[10px] text-muted-foreground underline-offset-4 hover:underline">+{component.technologies.length - 5} more</button>}
-                      </div>
+                      >
+                        {/* Component Name */}
+                        <h4 className="mb-2 break-words text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary">
+                          {component.name}
+                        </h4>
 
-                      <div className="mt-4 border-t border-border/70 pt-3">
-                        <p className="mb-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Connects to</p>
-                        {outgoing.length > 0 ? (
-                          <ul className="flex flex-wrap gap-1.5">
-                            {outgoing.map((id) => {
-                              const target = componentMap.get(id)!;
-                              const TargetIcon = typeConfig[target.type].icon;
-                              const label = component.connectionDetails?.find((detail) => detail.to === id)?.label;
-                              return (
-                                <li key={id}>
-                                  <button type="button" onClick={() => focusComponent(id)} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 text-left text-[11px] text-foreground transition-colors hover:border-primary/40 focus-visible:outline-ring" title={label ? `${target.name}: ${label}` : `Inspect ${target.name}`}>
-                                    <TargetIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                    <span className="min-w-0 break-words">{target.name}</span>
-                                    {label && <span className="text-[10px] text-muted-foreground">{label}</span>}
-                                    <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : <p className="text-[11px] leading-5 text-muted-foreground">No outgoing component connections identified.</p>}
-                      </div>
+                        {/* Description */}
+                        <p className="mb-4 flex-1 break-words text-xs leading-relaxed text-muted-foreground">
+                          {component.description}
+                        </p>
 
-                      {expanded && (
-                        <div className="mt-4 space-y-4 border-t border-border/70 pt-3">
-                          {callers.length > 0 && (
-                            <div>
-                              <p className="mb-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">Used by</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {callers.map((caller) => <button key={caller.id} type="button" onClick={() => focusComponent(caller.id)} className="rounded-md border border-border bg-card px-2 py-1.5 text-[11px] text-foreground hover:border-primary/40 focus-visible:outline-ring">{caller.name}</button>)}
-                              </div>
-                            </div>
+                        {/* Technologies */}
+                        <div className="mt-auto flex flex-wrap gap-1.5">
+                          {component.technologies.slice(0, 3).map((tech) => (
+                            <span
+                              key={tech}
+                              className={cn(
+                                "text-[10px] font-medium px-1.5 py-0.5 rounded",
+                                "bg-background border border-border/50",
+                                "text-muted-foreground",
+                              )}
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                          {component.technologies.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground/50 self-center">
+                              +{component.technologies.length - 3}
+                            </span>
                           )}
-                          <div>
-                            <p className="mb-2 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground"><FileCode className="h-3 w-3" />Source evidence</p>
-                            {evidence.length > 0 ? <ul className="space-y-1.5">{evidence.map((file) => <li key={file} className="break-all rounded border border-border bg-card px-2 py-1.5 font-mono text-[10px] text-muted-foreground">{file}</li>)}</ul> : <p className="text-[11px] leading-5 text-muted-foreground">Source references are not included in this analysis.</p>}
-                          </div>
                         </div>
-                      )}
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
 
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <span className="font-mono text-[9px] text-muted-foreground">{outgoing.length} outgoing · {callers.length} incoming</span>
-                        <Button variant="ghost" size="sm" onClick={() => toggleDetails(component.id)} aria-expanded={expanded} aria-label={`${expanded ? "Hide" : "View"} details for ${component.name}`} className="h-7 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground">
-                          {expanded ? "Less detail" : "View details"}
-                          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                        </Button>
-                      </div>
-                    </article>
-                  );
-                })}
+                {/* Connector */}
+                {layerIndex < activeLayers.length - 1 && (
+                  <div className="flex items-center gap-3 py-3 ml-2.5">
+                    <div className="w-px h-4 bg-border/60" />
+                    <ChevronDown className="w-3 h-3 text-muted-foreground/30" />
+                  </div>
+                )}
               </div>
-            </section>
-          );
-        })}
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

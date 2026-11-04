@@ -1,72 +1,351 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatNumber, cn } from "@/lib/utils";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { formatNumber, formatDate, cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
-import { AnalysisHeaderProps, StatItem } from "./types";
-import { BranchSelector } from "./branch-selector";
-import { Github, Star, GitFork, Eye, GitBranch, Copy, CircleDot, Check, ArrowUpRight } from "lucide-react";
 
-export function AnalysisHeader({ metadata, branch, availableBranches, onBranchChange, isLoading = false }: AnalysisHeaderProps) {
+import { AnalysisHeaderProps, StatItem } from "./types";
+import { InfoSection } from "./info-section";
+import { BranchSelector } from "./branch-selector";
+import {
+  Github,
+  Star,
+  GitFork,
+  Eye,
+  Code2,
+  Scale,
+  Copy,
+  Clock,
+  Target,
+  CircleDot,
+  Check,
+} from "lucide-react";
+
+export function AnalysisHeader({
+  metadata,
+  branch,
+  availableBranches,
+  onBranchChange,
+  isLoading = false,
+}: AnalysisHeaderProps) {
   const [copied, setCopied] = useState(false);
-  const currentBranch = branch || metadata.defaultBranch;
+
   const handleCopyUrl = useCallback(async () => {
-    await navigator.clipboard.writeText(`https://github.com/${metadata.fullName}`);
+    await navigator.clipboard.writeText(
+      `https://github.com/${metadata.fullName}`
+    );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [metadata.fullName]);
 
-  const stats: StatItem[] = useMemo(() => [
-    { icon: Star, value: metadata.stars, label: "Stars", highlight: true },
-    { icon: GitFork, value: metadata.forks, label: "Forks", highlight: false },
-    { icon: Eye, value: metadata.watchers, label: "Watchers", highlight: false },
-    { icon: CircleDot, value: metadata.openIssues, label: "Issues", highlight: false },
-  ], [metadata.stars, metadata.forks, metadata.watchers, metadata.openIssues]);
+  const currentBranch = branch || metadata.defaultBranch;
+
+  const stats: StatItem[] = useMemo(
+    () => [
+      {
+        icon: Star,
+        value: metadata.stars,
+        label: "Stars",
+        highlight: true,
+      },
+      {
+        icon: GitFork,
+        value: metadata.forks,
+        label: "Forks",
+        highlight: false,
+      },
+      {
+        icon: Eye,
+        value: metadata.watchers,
+        label: "Watchers",
+        highlight: false,
+      },
+      {
+        icon: CircleDot,
+        value: metadata.openIssues,
+        label: "Issues",
+        highlight: false,
+      },
+    ],
+    [metadata.stars, metadata.forks, metadata.watchers, metadata.openIssues]
+  );
 
   return (
-    <Card className="gap-0 overflow-hidden rounded-lg border-border bg-card p-0 shadow-none">
-      <div className="flex flex-col justify-between gap-5 p-4 sm:p-5 lg:flex-row lg:items-center">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <Image src={metadata.owner.avatarUrl} alt={metadata.owner.login} width={44} height={44} unoptimized className="h-11 w-11 shrink-0 rounded-md border border-border object-cover" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <h2 className="truncate font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg" title={metadata.name}>{metadata.name}</h2>
-              <Badge variant="outline" className="shrink-0 rounded-sm border-border px-1.5 py-0 font-mono text-[9px] font-normal text-muted-foreground">{metadata.isPrivate ? "private" : "public"}</Badge>
+      <Card className="border-border/80 overflow-hidden p-0 bg-card shadow-xs">
+        <div className="p-4 sm:p-6">
+          {/* Top Row: Avatar, Info, Actions */}
+          <div className="flex gap-3 sm:gap-4">
+            {/* Avatar */}
+            <div className="relative shrink-0 flex items-start justify-center">
+              <Image
+                src={metadata.owner.avatarUrl}
+                alt={metadata.owner.login}
+                width={56}
+                height={56}
+                unoptimized
+                className="relative z-10 h-12 w-12 sm:h-14 sm:w-14 rounded-lg border border-border object-cover"
+              />
             </div>
-            <Link href={`https://github.com/${metadata.owner.login}`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-mono text-[11px] text-muted-foreground transition-colors hover:text-primary">@{metadata.owner.login}</Link>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">
+                  {metadata.name}
+                </h1>
+                <Badge
+                  variant={metadata.isPrivate ? "secondary" : "outline"}
+                  className={cn(
+                    "text-[10px] sm:text-xs shrink-0 font-mono",
+                    !metadata.isPrivate && "border-primary/30 text-primary bg-primary/5"
+                  )}
+                >
+                  {metadata.isPrivate ? "Private" : "Public"}
+                </Badge>
+              </div>
+
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                <Link
+                  href={`https://github.com/${metadata.owner.login}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors font-mono"
+                >
+                  @{metadata.owner.login}
+                </Link>
+              </p>
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden sm:flex items-start gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 cursor-pointer"
+                onClick={handleCopyUrl}
+                title="Copy GitHub URL"
+              >
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-primary" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" asChild>
+                <Link
+                  href={`https://github.com/${metadata.fullName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Github className="w-3.5 h-3.5" />
+                  GitHub
+                </Link>
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {availableBranches && availableBranches.length > 0 && onBranchChange ? (
-            <BranchSelector currentBranch={currentBranch} branches={availableBranches} onBranchChange={onBranchChange} disabled={isLoading} />
-          ) : (
-            <Badge variant="outline" className="h-9 max-w-48 gap-1.5 rounded-md border-border px-2.5 font-mono text-[11px] font-normal text-muted-foreground"><GitBranch className="h-3 w-3 shrink-0" /><span className="truncate">{currentBranch}</span></Badge>
+
+          {metadata.description && (
+            <p className="text-sm text-muted-foreground leading-relaxed mt-3 sm:mt-4">
+              {metadata.description}
+            </p>
           )}
-          <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
-          <Button variant="outline" size="icon" onClick={handleCopyUrl} title="Copy GitHub URL" aria-label="Copy GitHub URL" className="h-9 w-9 cursor-pointer rounded-md border-border text-muted-foreground shadow-none">
-            {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
-          </Button>
-          <Button variant="outline" size="sm" asChild className="h-9 gap-2 rounded-md border-border font-mono text-[11px] shadow-none">
-            <Link href={`https://github.com/${metadata.fullName}`} target="_blank" rel="noopener noreferrer"><Github className="h-3.5 w-3.5" />GitHub<ArrowUpRight className="h-3 w-3 text-muted-foreground" /></Link>
-          </Button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 border-t border-border bg-muted/10 sm:grid-cols-4">
-        {stats.map(({ icon: Icon, value, label }, index) => (
-          <div key={label} className={cn("flex items-center gap-3 border-border px-4 py-4 sm:px-5", index < 2 && "border-b sm:border-b-0", index % 2 === 0 && "border-r", index === 1 && "sm:border-r")}>
-            <Icon className="h-4 w-4 shrink-0 text-muted-foreground/70" />
-            <div>
-              <div className="font-mono text-base font-medium tabular-nums text-foreground">{formatNumber(value)}</div>
-              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
-            </div>
+
+          {/* Meta Badges Row */}
+          <div className="mt-4">
+            {/* Mobile: Full-width Branch Selector */}
+            {availableBranches &&
+              availableBranches.length > 1 &&
+              onBranchChange && (
+                <div className="sm:hidden mb-3">
+                  <BranchSelector
+                    currentBranch={currentBranch}
+                    branches={availableBranches}
+                    onBranchChange={onBranchChange}
+                    disabled={isLoading}
+                    fullWidth
+                  />
+                </div>
+              )}
+
+            {/* Scrollable badges */}
+            <ScrollArea className="w-full">
+              <div className="flex items-center gap-1.5 pb-1 font-mono text-xs">
+                {metadata.language && (
+                  <Badge className="text-[10px] sm:text-xs shrink-0 gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+                    <Code2 className="w-3 h-3" />
+                    {metadata.language}
+                  </Badge>
+                )}
+                {metadata.license && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] sm:text-xs shrink-0 gap-1"
+                  >
+                    <Scale className="w-3 h-3" />
+                    {metadata.license}
+                  </Badge>
+                )}
+                {/* Branch Selector - Desktop only (inline) */}
+                <div className="hidden sm:block">
+                  {availableBranches &&
+                  availableBranches.length > 0 &&
+                  onBranchChange ? (
+                    <BranchSelector
+                      currentBranch={currentBranch}
+                      branches={availableBranches}
+                      onBranchChange={onBranchChange}
+                      disabled={isLoading}
+                    />
+                  ) : (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] sm:text-xs shrink-0 gap-1"
+                    >
+                      <Code2 className="w-3 h-3" />
+                      {currentBranch}
+                    </Badge>
+                  )}
+                </div>
+                {/* Mobile fallback */}
+                {(!availableBranches ||
+                  availableBranches.length <= 1 ||
+                  !onBranchChange) && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] sm:text-xs shrink-0 gap-1 sm:hidden"
+                  >
+                    <Code2 className="w-3 h-3" />
+                    {currentBranch}
+                  </Badge>
+                )}
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] sm:text-xs shrink-0 gap-1"
+                >
+                  <Clock className="w-3 h-3" />
+                  {formatDate(metadata.pushedAt)}
+                </Badge>
+              </div>
+              <ScrollBar orientation="horizontal" className="h-0 opacity-0" />
+            </ScrollArea>
           </div>
-        ))}
-      </div>
-    </Card>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4">
+            {stats.map(({ icon: Icon, value, label, highlight }) => (
+              <div
+                key={label}
+                className={cn(
+                  "group flex items-center gap-2.5 p-2.5 sm:p-3 rounded-lg transition-colors border",
+                  highlight
+                    ? "bg-primary/5 border-primary/25 hover:bg-primary/10"
+                    : "bg-muted/20 border-border/60 hover:bg-muted/40"
+                )}
+              >
+                <div
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    highlight
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className={cn(
+                      "text-sm sm:text-base font-mono font-medium tabular-nums",
+                      highlight ? "text-primary" : "text-foreground"
+                    )}
+                  >
+                    {formatNumber(value)}
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">
+                    {label}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile Actions */}
+          <div className="flex sm:hidden gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={handleCopyUrl}
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-primary" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90"
+              asChild
+            >
+              <Link
+                href={`https://github.com/${metadata.fullName}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Github className="w-3.5 h-3.5 mr-1.5" />
+                GitHub
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        {metadata.topics?.length > 0 && (
+        <CardContent className="p-4 sm:p-6 pt-4 space-y-4 border-t border-border/60">
+          {/* Topics */}
+          {metadata.topics?.length > 0 && (
+            <InfoSection
+              icon={Target}
+              title="Topics"
+              description="Related categories and tags"
+              accentColor="cyan"
+              count={metadata.topics.length}
+            >
+              <ScrollArea className="w-full">
+                <div className="flex gap-1.5 pb-1">
+                  {metadata.topics.slice(0, 15).map((topic, index) => (
+                    <Badge
+                      key={topic}
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] sm:text-xs shrink-0 transition-colors cursor-default font-mono",
+                        index === 0
+                          ? "bg-primary/5 border-primary/20 text-primary hover:bg-primary/10"
+                          : "bg-muted/20 hover:bg-muted/40"
+                      )}
+                    >
+                      {topic}
+                    </Badge>
+                  ))}
+                  {metadata.topics.length > 15 && (
+                    <span className="text-[10px] sm:text-xs text-muted-foreground/50 self-center shrink-0 pl-1 font-mono">
+                      +{metadata.topics.length - 15}
+                    </span>
+                  )}
+                </div>
+                <ScrollBar orientation="horizontal" className="h-0 opacity-0" />
+              </ScrollArea>
+            </InfoSection>
+          )}
+
+        </CardContent>
+        )}
+      </Card>
   );
 }
 

@@ -3,7 +3,7 @@
 import { useCallback, useState, useRef } from "react";
 import { useAnalysisContext } from "@/context/analysis-context";
 import { AnalysisResult } from "@/lib/types";
-import { analysisStorage } from "@/lib/storage";
+import { parseAnalysisContent } from "@/lib/validators";
 
 const GITHUB_URL_REGEX =
   /(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+\/[^\/\s?#]+)/;
@@ -20,9 +20,9 @@ const LOADING_MESSAGES = [
   "Scanning repository...",
   "Analyzing patterns...",
   "Checking architecture...",
-  "Generating insights...",
-  "Evaluating code quality...",
-  "Building recommendations...",
+  "Mapping dependencies...",
+  "Connecting modules...",
+  "Preparing architecture...",
   "Preparing results...",
   "Finalizing analysis...",
 ];
@@ -38,16 +38,14 @@ export function useAnalysis() {
     isLoading,
     isComplete,
     hasError,
-    isIdle,
   } = useAnalysisContext();
 
-  const [isCached, setIsCached] = useState(false);
   const [currentRepoUrl, setCurrentRepoUrl] = useState<string | null>(null);
   const [currentBranch, setCurrentBranch] = useState<string | undefined>();
   const abortRef = useRef<AbortController | null>(null);
 
   const analyze = useCallback(
-    async (url: string, branch?: string, skipCache = false) => {
+    async (url: string, branch?: string) => {
       const repoFullName = extractRepoFullName(url);
       if (!repoFullName) {
         setStatus({
@@ -63,21 +61,6 @@ export function useAnalysis() {
       setCurrentRepoUrl(url);
       setCurrentBranch(branch);
 
-      if (!skipCache) {
-        const cached = analysisStorage.get(repoFullName, branch);
-        if (cached) {
-          setResult(cached);
-          setIsCached(true);
-          setStatus({
-            stage: "complete",
-            progress: 100,
-            currentStep: "Loaded from cache",
-          });
-          return;
-        }
-      }
-
-      setIsCached(false);
       setStatus({
         stage: "fetching",
         progress: 5,
@@ -90,6 +73,7 @@ export function useAnalysis() {
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          cache: "no-store",
           body: JSON.stringify({ url, branch }),
           signal: abortRef.current.signal,
         });
@@ -106,6 +90,7 @@ export function useAnalysis() {
         let buffer = "";
         let aiContent = "";
         let currentResult: Partial<AnalysisResult> = {};
+        let receivedDone = false;
 
         setStatus({
           stage: "fetching",
@@ -142,29 +127,11 @@ export function useAnalysis() {
                   updateResult(currentResult);
                   setStatus({
                     stage: "analyzing",
-                    progress: 20,
+                    progress: 30,
                     currentStep: `Analyzing ${b}...`,
                   });
                   break;
                 }
-                case "automations":
-                  currentResult = { ...currentResult, automations: data.data };
-                  updateResult(currentResult);
-                  setStatus({
-                    stage: "analyzing",
-                    progress: 40,
-                    currentStep: "Automations ready...",
-                  });
-                  break;
-                case "refactors":
-                  currentResult = { ...currentResult, refactors: data.data };
-                  updateResult(currentResult);
-                  setStatus({
-                    stage: "analyzing",
-                    progress: 50,
-                    currentStep: "Refactors ready...",
-                  });
-                  break;
                 case "content":
                   aiContent += data.data;
                   // Asymptotic progress: starts fast, slows near 98%.
@@ -182,18 +149,17 @@ export function useAnalysis() {
                   });
                   break;
                 case "error":
-                  throw new Error(data.data);
+                  throw new Error(typeof data.data === "string" && data.data
+                    ? data.data
+                    : "The AI model could not complete the analysis. Please try again.");
                 case "done": {
+                  if (!currentResult.metadata) {
+                    throw new Error("The analysis response is missing repository information. Please try again.");
+                  }
                   const final = processFinalResult(aiContent, currentResult);
+                  receivedDone = true;
 
                   updateResult(final);
-                  if (currentResult.metadata?.fullName) {
-                    analysisStorage.set(
-                      currentResult.metadata.fullName,
-                      final as AnalysisResult,
-                      currentResult.branch,
-                    );
-                  }
                   setStatus({
                     stage: "complete",
                     progress: 100,
@@ -202,11 +168,17 @@ export function useAnalysis() {
                   break;
                 }
               }
-            } catch (e) {
-              if (e instanceof Error && e.message !== "done")
-                console.error("Parse error:", e);
+            } catch (error) {
+              const message = error instanceof SyntaxError
+                ? "The model response could not be read. Please try again."
+                : error instanceof Error ? error.message : "The model returned an invalid response. Please try again.";
+              console.error("Model output error:", message);
+              throw new Error(message);
             }
           }
+        }
+        if (!receivedDone) {
+          throw new Error("The model response ended before analysis finished. Please try again.");
         }
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;
@@ -225,49 +197,32 @@ export function useAnalysis() {
 
   const analyzeBranch = useCallback(
     async (branch: string) => {
-      if (currentRepoUrl) await analyze(currentRepoUrl, branch, true);
+      if (currentRepoUrl) await analyze(currentRepoUrl, branch);
     },
     [currentRepoUrl, analyze],
   );
 
-  const refresh = useCallback(async () => {
-    if (!currentRepoUrl) return;
-    const name = extractRepoFullName(currentRepoUrl);
-    if (name) analysisStorage.remove(name, currentBranch);
-    setIsCached(false);
-    await analyze(currentRepoUrl, currentBranch, true);
+  const retry = useCallback(async () => {
+    if (currentRepoUrl) await analyze(currentRepoUrl, currentBranch);
   }, [currentRepoUrl, currentBranch, analyze]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
     contextReset();
-    setIsCached(false);
     setCurrentRepoUrl(null);
     setCurrentBranch(undefined);
   }, [contextReset]);
 
-  const clearCache = useCallback(() => {
-    if (!currentRepoUrl) return;
-    const name = extractRepoFullName(currentRepoUrl);
-    if (name) {
-      analysisStorage.remove(name, currentBranch);
-      setIsCached(false);
-    }
-  }, [currentRepoUrl, currentBranch]);
-
   return {
     analyze,
     analyzeBranch,
-    refresh,
+    retry,
     reset,
-    clearCache,
     status,
     result,
     isLoading,
     isComplete,
     hasError,
-    isIdle,
-    isCached,
     currentRepoUrl,
     currentBranch,
   };
@@ -277,31 +232,5 @@ function processFinalResult(
   aiContent: string,
   current: Partial<AnalysisResult>,
 ): Partial<AnalysisResult> {
-  try {
-    const match = aiContent.match(/\{[\s\S]*\}/);
-    if (match) {
-      const data = JSON.parse(match[0]);
-      return {
-        ...current,
-        insights: (data.insights || []).filter(
-          (insight: { type: string }) => insight.type === "weakness" || insight.type === "warning",
-        ),
-        architecture: data.architecture || [],
-        dependencyGraph: data.dependencyGraph || { nodes: [], edges: [] },
-        automations: current.automations,
-        refactors: current.refactors,
-      };
-    }
-  } catch (e) {
-    console.error("Parse error:", e);
-  }
-
-  return {
-    ...current,
-    insights: [],
-    architecture: [],
-    dependencyGraph: { nodes: [], edges: [] },
-    automations: current.automations,
-    refactors: current.refactors,
-  };
+  return { ...current, ...parseAnalysisContent(aiContent) };
 }

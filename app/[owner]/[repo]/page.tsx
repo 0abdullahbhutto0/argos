@@ -17,7 +17,7 @@ async function getGitHubData(owner: string, repo: string) {
           Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
           Accept: "application/vnd.github.v3+json",
         },
-        next: { revalidate: 3600 },
+        cache: "no-store",
       }
     );
 
@@ -56,7 +56,7 @@ export async function generateMetadata({
   const description =
     github?.description && github.description.length >= 100
       ? github.description
-      : `Analyze ${repoFullName} with AI. Get instant insights on code quality, architecture, security vulnerabilities, and actionable improvement suggestions on Argos.`;
+      : `Analyze ${repoFullName} with AI. Explore its architecture and module dependencies on Argos.`;
 
   return { title, description };
 }

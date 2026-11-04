@@ -1,6 +1,4 @@
-import { BranchInfo, RepoMetadata } from "@/lib/types";
-import { GeneratedAutomation } from "./automation-generator";
-import { GeneratedRefactor } from "./refactor-generator";
+import { RepoMetadata, FileStats, BranchInfo } from "@/lib/types";
 
 export interface EnvConfig {
   OPENROUTER_API_KEY: string;
@@ -30,23 +28,11 @@ export interface StreamEventDone {
   type: "done";
 }
 
-export interface StreamEventAutomations {
-  type: "automations";
-  data: GeneratedAutomation[];
-}
-
-export interface StreamEventRefactors {
-  type: "refactors";
-  data: GeneratedRefactor[];
-}
-
 export type StreamEvent =
   | StreamEventMetadata
   | StreamEventContent
   | StreamEventError
-  | StreamEventDone
-  | StreamEventAutomations
-  | StreamEventRefactors;
+  | StreamEventDone;
 
 export interface AnalyzeRequestBody {
   url: string;
@@ -68,6 +54,7 @@ export interface ErrorResponse {
 
 export interface PromptContext {
   metadata: RepoMetadata;
+  fileStats: FileStats;
   compactTree: string;
   filesContent: string;
   branch: string;

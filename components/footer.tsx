@@ -1,17 +1,44 @@
 import Link from "next/link";
+import ArgosLogo from "./icons/Argos-logo";
 
 export function Footer() {
   return (
-    <footer className="mt-auto border-t border-border bg-background/80">
-      <div className="mx-auto flex w-full max-w-7xl flex-col justify-between gap-3 px-4 py-4 font-mono text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Link href="/" className="font-medium tracking-wider text-foreground">ARGOS</Link>
-          <span>Codebase clarity, built for engineers.</span>
+    <footer className="relative z-10 bg-background w-full border-t border-border/80">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row items-start justify-between gap-8 py-10 md:py-12">
+          <div className="space-y-3 max-w-sm">
+            <Link href="/" className="flex items-center gap-2.5 group w-fit">
+              <ArgosLogo className="h-6 w-auto sm:h-7 shrink-0" />
+              <span className="font-semibold text-lg tracking-tight text-foreground">
+                Argos
+              </span>
+            </Link>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Explore your repositories with clear architecture and dependency maps.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <Link
+              href="/terms"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Privacy
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-5">
-          <span>© {new Date().getFullYear()} Argos</span>
-          <Link href="/terms" className="transition-colors hover:text-foreground">Terms</Link>
-          <Link href="/privacy" className="transition-colors hover:text-foreground">Privacy</Link>
+
+        {/* Bottom Bar */}
+        <div className="border-t border-border/60 py-6">
+          <p className="text-xs text-muted-foreground text-center sm:text-left">
+            © {new Date().getFullYear()} Argos. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
