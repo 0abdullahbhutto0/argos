@@ -52,7 +52,7 @@ export default function RootLayout({
           "antialiased overflow-x-hidden"
         )}
       >
-        <SessionProvider>
+        <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
         <AnalysisProvider>
           <ThemeProvider
             attribute="class"

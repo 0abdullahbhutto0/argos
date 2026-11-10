@@ -1,14 +1,11 @@
 import { BranchInfo, RepoMetadata } from "@/lib/types";
 import { StreamEvent } from "./types";
-import { AnalysisResponseError, parseAnalysisContent } from "@/lib/validators";
+import { AnalysisResponseError} from "@/lib/validators";
 
 export function formatModelError(error: unknown): string {
   if (error instanceof AnalysisResponseError) return error.message;
   const message = error instanceof Error ? error.message : String(error);
-  if (/no longer available|no provider|no endpoints found|model.*not found|not a valid model/i.test(message)) {
-    return "The AI model is currently unavailable. Please try again later; the site maintainer may need to update the model.";
-  }
-  return "The AI model could not complete the analysis. Please try again.";
+  return message;
 }
 
 const encoder = new TextEncoder();
@@ -45,11 +42,9 @@ export function createAnalysisStream(
           content += chunk;
           controller.enqueue(encodeStreamEvent({ type: "content", data: chunk }));
         }
-        parseAnalysisContent(content);
       } catch (error) {
-        const message = formatModelError(error);
-        console.error("Model analysis error:", message);
-        controller.enqueue(encodeStreamEvent({ type: "error", data: message }));
+        console.error("Model analysis error:", error);
+        controller.enqueue(encodeStreamEvent({ type: "error", data: "stream interrupted" }));
         controller.close();
         return;
       }

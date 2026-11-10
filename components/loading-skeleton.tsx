@@ -83,12 +83,39 @@ interface ApologyMessage {
 }
 
 const APOLOGY_MESSAGES: { after: number; message: ApologyMessage }[] = [
-  { after: 15, message: { emoji: "🙏", text: "We're running on free-tier AI models to keep Argos free for everyone. Thanks for your patience — it's worth the wait!" } },
-  { after: 30, message: { emoji: "💛", text: "Still working! Free AI models can be a bit slow, but we'd rather keep this free than charge you. Hang tight!" } },
-  { after: 50, message: { emoji: "🫶", text: "We know this is taking a while — sorry about that. We use free AI infrastructure so everyone can analyze repos without paying a cent." } },
-  { after: 75, message: { emoji: "☕", text: "Grab a coffee — the AI is doing its thing! Running on free models means slower speeds, but it also means Argos stays free for you." } },
-  { after: 100, message: { emoji: "🌟", text: "Almost there, we promise! Thank you for being patient with our free-tier setup. Your support means a lot to this open-source project." } },
-];
+  { after: 15, message: { emoji: "🙏", text: "Taking a closer look at your codebase. We're mapping out how everything fits together!"
+    }
+  },
+  {
+    after: 30,
+    message: {
+      emoji: "💛",
+      text: "Connecting the dots! We're tracing dependencies and identifying how different parts of your project interact."
+    }
+  },
+  {
+    after: 50,
+    message: {
+      emoji: "🫶",
+      text: "There's quite a bit to unpack. We're putting together your architecture and dependency graph."
+    }
+  },
+  {
+    after: 75,
+    message: {
+      emoji: "☕",
+      text: "Still working through your repository. Complex codebases take a little more digging — thanks for hanging in there!"
+    }
+  },
+  {
+    after: 100,
+    message: {
+      emoji: "🌟",
+      text: "Almost ready! We're putting the final pieces together. Thanks for giving Argos a moment!"
+    }
+  }
+]
+
 
 function getApologyMessage(elapsedSeconds: number): ApologyMessage | null {
   let result: ApologyMessage | null = null;

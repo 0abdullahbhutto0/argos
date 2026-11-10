@@ -497,8 +497,8 @@ export async function fetchImportantFiles(
   const targetBranch = branch || "main";
   const contents: Record<string, string> = {};
   let totalSize = 0;
-  const maxTotalSize = 200000; // 200KB total (doubled from 100KB)
-  const maxFileSize = 12000; // 12KB per file (increased from 8KB)
+  const maxTotalSize = 200000; // 200KB total 
+  const maxFileSize = 12000; // 12KB per file 
 
   // Build the full file list: known important files + discovered source files
   const allFiles = [...IMPORTANT_FILES];

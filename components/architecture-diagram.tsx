@@ -158,12 +158,12 @@ export function ArchitectureDiagram({ components }: ArchitectureDiagramProps) {
                         )}
                       >
                         {/* Component Name */}
-                        <h4 className="mb-2 break-words text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary">
+                        <h4 className="mb-2 wrap-break-word text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary">
                           {component.name}
                         </h4>
 
                         {/* Description */}
-                        <p className="mb-4 flex-1 break-words text-xs leading-relaxed text-muted-foreground">
+                        <p className="mb-4 flex-1 wrap-break-word text-xs leading-relaxed text-muted-foreground">
                           {component.description}
                         </p>
 

@@ -3,7 +3,6 @@
 import { useCallback, useState, useRef } from "react";
 import { useAnalysisContext } from "@/context/analysis-context";
 import { AnalysisResult } from "@/lib/types";
-import { parseAnalysisContent } from "@/lib/validators";
 
 const GITHUB_URL_REGEX =
   /(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+\/[^\/\s?#]+)/;
@@ -149,9 +148,7 @@ export function useAnalysis() {
                   });
                   break;
                 case "error":
-                  throw new Error(typeof data.data === "string" && data.data
-                    ? data.data
-                    : "The AI model could not complete the analysis. Please try again.");
+                  throw new Error(data.data);
                 case "done": {
                   if (!currentResult.metadata) {
                     throw new Error("The analysis response is missing repository information. Please try again.");
@@ -169,11 +166,8 @@ export function useAnalysis() {
                 }
               }
             } catch (error) {
-              const message = error instanceof SyntaxError
-                ? "The model response could not be read. Please try again."
-                : error instanceof Error ? error.message : "The model returned an invalid response. Please try again.";
-              console.error("Model output error:", message);
-              throw new Error(message);
+              if (error instanceof Error && error.message !== "done")
+              console.error("Parse error:", error);
             }
           }
         }
@@ -232,5 +226,28 @@ function processFinalResult(
   aiContent: string,
   current: Partial<AnalysisResult>,
 ): Partial<AnalysisResult> {
-  return { ...current, ...parseAnalysisContent(aiContent) };
+  try {
+    if (!aiContent.trim()) {
+        throw new Error("The AI service finished without returning an analysis. Please try again.");
+      }
+    const match = aiContent.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Missing JSON");
+    
+      const data = JSON.parse(match[0]);
+      return {
+        ...current,
+        architecture: data.architecture || [],
+        dependencyGraph: data.dependencyGraph || { nodes: [], edges: [] },
+       
+      };
+    
+  } catch (e) {
+    console.error("Parse error:", e);
+  }
+
+  return {
+    ...current,
+    architecture: [],
+    dependencyGraph: { nodes: [], edges: [] },
+  };
 }

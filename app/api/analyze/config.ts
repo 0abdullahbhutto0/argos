@@ -1,7 +1,7 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { EnvConfig } from "./types";
 
-export const MODEL_ID = "openrouter/free";
+export const MODEL_ID = "nvidia/nemotron-3.5-super-vl:free";
 
 export const AI_CONFIG = {
   temperature: 0.7,

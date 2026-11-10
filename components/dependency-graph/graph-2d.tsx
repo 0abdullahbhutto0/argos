@@ -28,8 +28,6 @@ import { DependencyNode, DependencyEdge } from "@/lib/types";
 import { DependencyGraphProps } from "./types";
 import { useTheme } from "next-themes";
 
-// ΓöÇΓöÇΓöÇ Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-
 interface PositionedNode extends DependencyNode {
   x: number;
   y: number;
@@ -42,8 +40,6 @@ interface CanvasState {
   panY: number;
   zoom: number;
 }
-
-// ΓöÇΓöÇΓöÇ Color palette per node group ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 const GROUP_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   component: { bg: "#3b82f620", border: "#3b82f6", text: "#60a5fa" },
@@ -64,7 +60,6 @@ function getGroupColor(group: string) {
   return GROUP_COLORS[group.toLowerCase()] || GROUP_COLORS.default;
 }
 
-// ΓöÇΓöÇΓöÇ Force-directed layout ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 const NODE_WIDTH = 164;
 const NODE_HEIGHT = 52;
@@ -168,7 +163,6 @@ function forceDirectedLayout(
   return { nodes: positioned, width: layoutWidth, height: layoutHeight };
 }
 
-// ΓöÇΓöÇΓöÇ Edge path with curvature ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function getEdgePath(
   source: PositionedNode,
@@ -209,7 +203,6 @@ function getEdgePath(
   return `M ${startX} ${startY} Q ${cx} ${cy} ${endX} ${endY}`;
 }
 
-// ΓöÇΓöÇΓöÇ Graph Canvas SVG ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export function Graph2DCanvas({
   nodes,
@@ -258,7 +251,7 @@ export function Graph2DCanvas({
     [positioned],
   );
 
-  // Only store drag overrides ΓÇö everything else derives from the layout
+  // Only store drag override everything else derives from the layout
   const [dragOverrides, setDragOverrides] = useState<Map<string, { x: number; y: number }>>(new Map());
 
   const nodeMap = useMemo(
@@ -292,7 +285,7 @@ export function Graph2DCanvas({
     return point.matrixTransform(svg.getScreenCTM()!.inverse());
   }, []);
 
-  // ΓöÇΓöÇΓöÇ Mouse handlers ΓöÇΓöÇΓöÇ
+  //Mouse handlers
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if ((e.target as HTMLElement).closest("[data-node-id]")) return;

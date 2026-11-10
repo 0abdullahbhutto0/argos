@@ -23,18 +23,18 @@ ${filesContent}
 # ANALYSIS INSTRUCTIONS
 
 ## Architecture
-- Map the actual major components and subsystems.
-- Specify each component's type, technologies, and connections.
-- Explain how components interact and reference the files that implement them.
+- Map out the system's major components/subsystems.
+- For each component, specify its type, technologies, and what it connects to.
+- Explain HOW components interact (not just that they do). What interfaces/protocols/patterns connect them?
 
-## Dependency Graph
-- Map actual import and usage relationships as a directed graph.
-- Pick 10-20 important files or modules, not every file.
-- Nodes: id, short label, group, description.
-- Groups: component, page, api, hook, lib, config, context, store, service, model, middleware.
-- Edges: from, to, label, type (direct for imports, indirect for implicit dependencies).
-- All connections and edge endpoints must reference existing IDs.
-- Do not invent modules or relationships that are not supported by the provided source.
+## Dependency Graph (CRITICAL — used for interactive visual canvas)
+- Map out file-level and module-level dependencies as a directed graph.
+- Each node represents a key file, module, or component (NOT every file — pick 10-20 most important ones).
+- Each edge represents an import, usage, or dependency relationship.
+- Nodes have: id, label (short display name like "AuthProvider" or "api/route.ts"), group (one of: component, page, api, hook, lib, config, context, store, service, model, middleware), description.
+- Edges have: from (source id), to (target id), label (relationship like "imports", "uses", "extends", "renders"), type ("direct" for imports, "indirect" for implicit dependencies).
+- Focus on the actual import/usage graph visible in the source files.
+- Group related files sensibly — don't just list random files.
 
 Return ONLY valid JSON with these fields, without markdown wrapping:
 {
@@ -43,9 +43,10 @@ Return ONLY valid JSON with these fields, without markdown wrapping:
       "id": "arch-1",
       "name": "Component Name",
       "type": "backend",
-      "description": "What this component does and how it interacts with other components, with specific file references",
-      "technologies": ["TypeScript"],
-      "connections": ["arch-2"]
+      "description": "What this component does and HOW it works, not just a label",
+      "technologies": ["Express", "TypeScript"],
+      "connections": ["arch-2"],
+      "keyFiles": ["src/server/index.ts"]
     }
   ],
   "dependencyGraph": {
@@ -58,7 +59,7 @@ Return ONLY valid JSON with these fields, without markdown wrapping:
     ]
   }
 }
-
+Return ONLY valid JSON — no markdown wrapping, no \`\`\`json fences
 Architecture types: frontend, backend, database, service, external, middleware.
 Output only architecture and dependencyGraph. If there is insufficient evidence, return empty arrays rather than guessing. Examples describe the response shape, not the repository's actual architecture.`;
 }

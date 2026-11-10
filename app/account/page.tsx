@@ -190,7 +190,7 @@ export default function AccountPage() {
                             }
                           }}
                           placeholder="Your name"
-                          className="h-8 text-sm max-w-[200px]"
+                          className="h-8 text-sm max-w-50"
                           maxLength={50}
                           autoFocus
                           disabled={savingName}
